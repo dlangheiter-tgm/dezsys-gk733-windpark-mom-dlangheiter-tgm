@@ -1,6 +1,4 @@
-package windpark;
-
-import javax.jms.ConnectionFactory;
+package windengine;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -15,23 +13,23 @@ import org.springframework.jms.support.converter.MappingJackson2MessageConverter
 import org.springframework.jms.support.converter.MessageConverter;
 import org.springframework.jms.support.converter.MessageType;
 
-import windpark.model.WindengineMessage;
+import javax.jms.ConnectionFactory;
 
 @SpringBootApplication
 @EnableJms
-public class Gk73Application {
+public class Windengine {
 
     @Bean
     public JmsListenerContainerFactory<?> myFactory(ConnectionFactory connectionFactory,
                                                     DefaultJmsListenerContainerFactoryConfigurer configurer) {
         DefaultJmsListenerContainerFactory factory = new DefaultJmsListenerContainerFactory();
-        // This provides all boot's default to this factory, including the message converter
+        // This provides all boot's default to this factory, including the id converter
         configurer.configure(factory, connectionFactory);
         // You could still override some of Boot's default if necessary.
         return factory;
     }
 
-    @Bean // Serialize message content to json using TextMessage
+    @Bean // Serialize id content to json using TextMessage
     public MessageConverter jacksonJmsMessageConverter() {
         MappingJackson2MessageConverter converter = new MappingJackson2MessageConverter();
         converter.setTargetType(MessageType.TEXT);
@@ -41,13 +39,26 @@ public class Gk73Application {
 
     public static void main(String[] args) {
         // Launch the application
-        ConfigurableApplicationContext context = SpringApplication.run(Gk73Application.class, args);
+        ConfigurableApplicationContext context = SpringApplication.run(Windengine.class, args);
 
         JmsTemplate jmsTemplate = context.getBean(JmsTemplate.class);
 
-        // Send a message with a POJO - the template reuse the message converter
-        System.out.println("Sending a message.");
-        jmsTemplate.convertAndSend("mailbox", new WindengineMessage("Hello Spencer"));
+        String id = args.length > 0 ? args[0] : "001";
+
+        WindengineSimulation ws = new WindengineSimulation();
+
+        int i = 0;
+        while (true) {
+            System.out.println(String.format("Sending message %d.", i++));
+            jmsTemplate.convertAndSend("engineData", ws.getData(id));
+            try {
+                Thread.sleep(3000);
+            } catch (InterruptedException e) {
+                System.out.println("Interrupted. Exiting...");
+                e.printStackTrace();
+                return;
+            }
+        }
     }
 
 }
